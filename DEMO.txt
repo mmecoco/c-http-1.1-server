@@ -1,0 +1,21 @@
+Sur mon ordi
+
+Test de curl pour le Put GET DELETE
+
+curl -X PUT -d 'name=mkyong&email=abc@gmail.com' http://10.41.178.203:4242/mmecoco.txt
+curl -X DELETE  http://10.41.178.203:4242/mmecoco.txt
+curl -X OPTION http://10.41.178.203:4242/
+
+Test de connection via routeur avec Lucio
+
+Pass to Server ordi (Conncetion problem à incister)
+
+(dossier listing)
+
+Montrer les images,
+la music
+et la video
+
+Préciser que chaque Error permet de génerer les messages d'errors
+
+La fin

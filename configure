@@ -1,0 +1,71 @@
+#!/bin/bash -e
+
+if [[ $UID == 0 ]]; then
+    echo "Script must not be run as root"
+    exit 1
+fi
+
+# Add git submodules (from .gitmodules)
+git submodule update --init --recursive
+
+sudo -H pip install -r requirements.txt | grep -v "Requirement already satisfied" || [[ $? == 1 ]]
+
+# Add bincrafters remote, do nothing if it's already defined
+conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan &> /dev/null || true
+
+# Setup compilation mode (Debug/Release)
+MODE="Debug"
+if [ $# == 1 ]; then
+  if [ "$1" != "clang" ]; then
+    MODE="$1"
+  fi
+fi
+
+# Setup conan compiler
+if [ $# == 1 ] && [ "$1" == "clang" ]; then
+  CONAN_ENV="-e CC=/usr/bin/clang -e CXX=/usr/bin/clang++"
+  PREFIX="CC=clang CXX=clang++"
+  COMPILER="clang"
+
+  if [ ! -f "$HOME/.conan/profiles/clang" ]; then
+    eval "$PREFIX" conan profile new clang --detect
+  fi
+
+  conan profile update 'settings.compiler.libcxx=libstdc++11' clang
+else
+  CONAN_ENV=""
+  PREFIX=""
+  COMPILER="gcc"
+
+  if [ ! -f "$HOME/.conan/profiles/default" ]; then
+    eval $PREFIX conan profile new default --detect
+  fi
+
+  conan profile update 'settings.compiler.libcxx=libstdc++11' default
+fi
+
+# Create/Reload build directory
+rm -rf build
+mkdir -p build
+
+DIRS=(build cmake-build-*)
+MASK=""
+
+# Conan install - then cmake in development directories
+echo "Setting up directories: ${DIRS[@]}"
+for dir in "${DIRS[@]}"; do
+  if [ -d "$dir" ]; then
+    cd "$dir"
+    eval $PREFIX conan install $CONAN_ENV --build=missing .. $MASK
+
+    # Hide following identical conan messages
+    MASK="1> /dev/null"
+    cd - 1>/dev/null
+  fi
+done
+
+cd build
+eval $PREFIX cmake -DCMAKE_BUILD_TYPE="$MODE" ..
+
+echo "Compiler: $COMPILER"
+echo "Mode:     $MODE"
